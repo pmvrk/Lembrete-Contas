@@ -1,0 +1,9 @@
+{
+  "bills": [
+    {
+      "id_paid_bill": 1,
+      "id_bill": 1,
+      "payment_date": "2025-03-13T14:30:00"
+    }
+  ]
+}
