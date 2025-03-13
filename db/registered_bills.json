@@ -1,0 +1,22 @@
+{
+  "registered_bills": {
+    "1": {
+      "name": "Energia",
+      "value": 250.75,
+      "due_date": 10,
+      "monthly_bill": true
+    },
+    "2": {
+      "name": "Internet",
+      "value": 120.5,
+      "due_date": 5,
+      "monthly_bill": true
+    },
+    "3": {
+      "name": "Água",
+      "value": 80.0,
+      "due_date": 20,
+      "monthly_bill": true
+    }
+  }
+}

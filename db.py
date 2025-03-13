@@ -3,12 +3,15 @@ import os
 from datetime import datetime, date
 
 class JsonManager:
-    def __init__(self, path):
+    def __init__(self, path, key):
         """
         Base class for handling JSON file operations.
         Ensures that the directory for the JSON file exists.
+        :param path: Path to the JSON file
+        :param key: Key name for storing items in JSON
         """
         self.path = path
+        self.key = key
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
     def read_json(self) -> dict:
@@ -17,13 +20,16 @@ class JsonManager:
         If the file does not exist or has an invalid format, it returns an empty structure.
         """
         if not os.path.exists(self.path):
-            return {"bills": []}
+            return {self.key: {}}
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                if self.key not in data:
+                    data[self.key] = {}
+                return data
         except (json.JSONDecodeError, FileNotFoundError):
-            return {"bills": []}
+            return {self.key: {}}
 
     def write_json(self, data: dict) -> None:
         """
@@ -33,18 +39,18 @@ class JsonManager:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
 class RegisteredBills(JsonManager):
-    def __init__(self, path='db/bills.json'):
+    def __init__(self, path='db/registered_bills.json'):
         """
         Initializes the database manager with a given JSON file path.
         Ensures that the directory for the JSON file exists.
         """
-        super().__init__(path)
+        super().__init__(path, "registered_bills")
 
     def read_bills(self) -> list:
         """
         Returns the list of bills from the JSON file.
         """
-        return self.read_json().get("bills", [])
+        return self.read_json().get(self.key, {})
 
 
     def add_bill(self, name: str, value: float, due_day: int, monthly_bill: bool) -> list:
@@ -58,43 +64,40 @@ class RegisteredBills(JsonManager):
         :return: Updated list of bills
         """
         data = self.read_json()
-        bills = data["bills"]
+        bills = data[self.key]
 
         # Generate a unique ID
-        new_id = max((bill.get("bill_id", 0) for bill in bills), default=0) + 1
+        new_id = new_id = str(max(map(int, bills.keys()), default=0) + 1)
 
         # Create new bill
         new_bill = {
-            "bill_id": new_id,
             "name": name,
             "value": value,
             "due_date": due_day,
             "monthly_bill": monthly_bill
         }
 
-        data["bills"].append(new_bill)
-
+        data[self.key][new_id] = new_bill
         self.write_json(data)
 
-        return data["bills"]
+        return data[self.key]
 
 
-    def delete_bill(self, id_bill: int) -> bool:
+    def delete_bill(self, id_bill: str) -> bool:
         """
         Deletes a bill by its ID from the JSON file.
 
-        :param bill_id: ID of the bill to be deleted
+        :param id_bill: ID of the bill to be deleted
         :return: True if the bill was deleted, False if not found
         """
         data = self.read_json()
-        bills = data["bills"]
+        bills = data[self.key]
 
-        updated_bills = [bill for bill in bills if bill["bill_id"] != id_bill]
-
-        if len(bills) == len(updated_bills):
+        if id_bill not in bills:
             return False  # Bill ID not found
 
-        data["bills"] = updated_bills
+        del data[self.key][id_bill]
+
         self.write_json(data)
 
         return True
@@ -106,61 +109,54 @@ class PaidBills(JsonManager):
         Initializes the database manager with a given JSON file path.
         Ensures that the directory for the JSON file exists.
         """
-        super().__init__(path)
+        super().__init__(path, "paid_bills")
 
-    def read_paid_bills(self) -> list:
+    def read_paid_bills(self) -> dict:
         """
-        Retrieves all paid bills and converts the due_date back to a date object.
+        Retrieves all paid bills and converts the payment_date back to a date object.
         """
         data = self.read_json()
-        for bill in data.get("bills", []):
-            bill["payment_date"] = datetime.strptime(bill["payment_date"], "%Y-%m-%d").date()  # Convertendo string para date
-        return data.get("bills", [])
+        for bill_id, bill in data[self.key].items():
+            try:
+                bill["payment_date"] = datetime.strptime(bill["payment_date"], "%Y-%m-%d").date()
+            except (ValueError, KeyError):
+                bill["payment_date"] = None  # Avoid crashing if the date format is wrong
+        return data[self.key]
 
 
-    def pay_bill(self, id_bill:int, date_of_payment:date) -> None:
+    def pay_bill(self, id_bill: str, date_of_payment: date) -> dict:
         """
         Adds a record of a bill payment to the JSON file.
-
-        :param id_bill: id of the bill
-        :param date_of_payment: date of the payment
-        :return: None
         """
         data = self.read_json()
-        paid_bills = data["bills"]
+        paid_bills = data[self.key]
 
         # Generate a unique ID
-        new_id = max((paid_bill.get("id_paid_bill", 0) for paid_bill in paid_bills), default=0) + 1
+        new_id = str(max(map(int, paid_bills.keys()), default=0) + 1)
 
-        # Create new bill
+        # Create new paid bill
         new_paid_bill = {
-            "id_paid_bill": new_id,
             "id_bill": id_bill,
-            "payment_date": date_of_payment.strftime("%Y-%m-%d"),
+            "payment_date": date_of_payment.strftime("%Y-%m-%d")
         }
 
-        data["bills"].append(new_paid_bill)
+        data[self.key][new_id] = new_paid_bill
         self.write_json(data)
 
-        return data["bills"]
+        return data[self.key]
 
 
-    def delete_paid_bill(self, id_paid_bill: int) -> bool:
+    def delete_paid_bill(self, id_paid_bill: str) -> bool:
         """
         Deletes a bill payment record by its ID from the JSON file.
-
-        :param id_paid_bill: ID of the bill payment record to be deleted
-        :return: True if the bill was deleted, False if not found
         """
         data = self.read_json()
-        paid_bills = data["bills"]
+        paid_bills = data[self.key]
 
-        updated_paid_bills = [paid_bill for paid_bill in paid_bills if paid_bill["id_paid_bill"] != id_paid_bill]
+        if id_paid_bill not in paid_bills:
+            return False  # ID not found
 
-        if len(paid_bills) == len(updated_paid_bills):
-            return False  # Bill ID not found
-
-        data["bills"] = updated_paid_bills
+        del data[self.key][id_paid_bill]
         self.write_json(data)
 
         return True
