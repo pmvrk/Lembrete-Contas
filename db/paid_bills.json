@@ -1,9 +1,12 @@
 {
-  "bills": [
-    {
-      "id_paid_bill": 1,
+  "paid_bills": {
+    "1": {
       "id_bill": 1,
-      "payment_date": "2025-03-13T14:30:00"
+      "payment_date": "2025-03-13"
+    },
+    "2": {
+      "id_bill": 2,
+      "payment_date": "2025-03-13"
     }
-  ]
+  }
 }
